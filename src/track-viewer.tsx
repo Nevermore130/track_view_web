@@ -5,12 +5,6 @@ import {
   useRef,
   useState,
 } from "react";
-import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import type {
-  GeoJSONSource,
-  LngLatBoundsLike,
-  Map as MapLibreMap,
-} from "maplibre-gl";
 import {
   ArrowDownUp,
   Bike,
@@ -32,6 +26,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { loadAmap, toAmapCoordinate } from "./lib/amap";
 import { clearLocalRoutes, loadLocalRoutes, mergeLocalRoutes } from "./lib/db";
 import {
   ACTIVITY_COLORS,
@@ -135,7 +130,7 @@ const copy = {
     units: "切换单位",
     menu: "打开工具栏",
     mapError: "底图暂时无法加载，路线列表仍可正常使用。",
-    privacyFootnote: "地图瓦片由第三方服务加载，但完整路线不会发送给地图服务。",
+    privacyFootnote: "高德加载底图资源；健康文件和路线处理仍留在当前浏览器。",
   },
   en: {
     brand: "Trace",
@@ -212,7 +207,7 @@ const copy = {
     units: "Switch units",
     menu: "Open toolbar",
     mapError: "The basemap could not load. The route list is still available.",
-    privacyFootnote: "Map tiles come from a third party, but complete routes are not sent to the map provider.",
+    privacyFootnote: "AMap loads the basemap; health files and route processing stay in this browser.",
   },
 } as const;
 
@@ -327,41 +322,6 @@ const buildElevationPath = (route: RouteRecord) => {
     .join(" ");
 };
 
-const getBounds = (routes: RouteRecord[]) => {
-  const points = routes.flatMap((route) => route.points);
-  if (!points.length) return null;
-  let minLng = Number.POSITIVE_INFINITY;
-  let minLat = Number.POSITIVE_INFINITY;
-  let maxLng = Number.NEGATIVE_INFINITY;
-  let maxLat = Number.NEGATIVE_INFINITY;
-  for (const point of points) {
-    minLng = Math.min(minLng, point.lng);
-    minLat = Math.min(minLat, point.lat);
-    maxLng = Math.max(maxLng, point.lng);
-    maxLat = Math.max(maxLat, point.lat);
-  }
-  return [
-    [minLng, minLat],
-    [maxLng, maxLat],
-  ] as LngLatBoundsLike;
-};
-
-const toRouteGeoJSON = (routes: RouteRecord[]) =>
-  ({
-    type: "FeatureCollection",
-    features: routes.map((route) => ({
-      type: "Feature",
-      properties: {
-        id: route.id,
-        activity: route.activity,
-      },
-      geometry: {
-        type: "LineString",
-        coordinates: route.points.map((point) => [point.lng, point.lat]),
-      },
-    })),
-  }) as GeoJSON.FeatureCollection;
-
 export function TrackViewer() {
   const [language, setLanguage] = useState<Language>("zh");
   const [units, setUnits] = useState<UnitSystem>("metric");
@@ -385,7 +345,9 @@ export function TrackViewer() {
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
+  const mapRef = useRef<AMap.Map | null>(null);
+  const routeOverlaysRef = useRef<AMap.Polyline[]>([]);
+  const selectedOverlaysRef = useRef<Array<AMap.Polyline | AMap.Marker>>([]);
   const workerRef = useRef<Worker | null>(null);
   const t = copy[language];
 
@@ -461,6 +423,16 @@ export function TrackViewer() {
     filteredRoutes.find((route) => route.id === selectedId) ??
     filteredRoutes[0] ??
     null;
+  const amapPaths = useMemo(
+    () =>
+      new Map(
+        routes.map((route) => [
+          route.id,
+          route.points.map(toAmapCoordinate),
+        ]),
+      ),
+    [routes],
+  );
 
   const totals = useMemo(
     () =>
@@ -478,142 +450,46 @@ export function TrackViewer() {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     let cancelled = false;
-    let map: MapLibreMap | null = null;
+    let map: AMap.Map | null = null;
 
     const initializeMap = async () => {
-      const maplibregl = await import("maplibre-gl");
-      if (cancelled || !mapContainerRef.current || mapRef.current) return;
+      try {
+        const AMapApi = await loadAmap();
+        if (cancelled || !mapContainerRef.current || mapRef.current) return;
 
-      maplibregl.setWorkerUrl(maplibreWorkerUrl);
-      const mapInstance = new maplibregl.Map({
-        container: mapContainerRef.current,
-        style: "https://tiles.openfreemap.org/styles/liberty",
-        center: [120.13, 30.24],
-        zoom: 11.5,
-        attributionControl: false,
-      });
-      map = mapInstance;
-      mapRef.current = mapInstance;
-      mapInstance.addControl(
-        new maplibregl.NavigationControl({ showCompass: false }),
-        "bottom-right",
-      );
-      mapInstance.addControl(
-        new maplibregl.AttributionControl({ compact: true }),
-        "bottom-right",
-      );
-      mapInstance.on("error", () => setMapError(true));
-      mapInstance.on("load", () => {
-      mapInstance.addSource("routes", {
-        type: "geojson",
-        data: toRouteGeoJSON(SAMPLE_ROUTES),
-      });
-      mapInstance.addLayer({
-        id: "route-shadow",
-        type: "line",
-        source: "routes",
-        paint: {
-          "line-color": "#10211b",
-          "line-opacity": 0.18,
-          "line-width": 8,
-          "line-blur": 1.2,
-        },
-      });
-      mapInstance.addLayer({
-        id: "routes",
-        type: "line",
-        source: "routes",
-        paint: {
-          "line-color": [
-            "match",
-            ["get", "activity"],
-            "running",
-            ACTIVITY_COLORS.running,
-            "cycling",
-            ACTIVITY_COLORS.cycling,
-            "walking",
-            ACTIVITY_COLORS.walking,
-            "hiking",
-            ACTIVITY_COLORS.hiking,
-            ACTIVITY_COLORS.other,
-          ],
-          "line-opacity": 0.66,
-          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 2, 14, 4],
-        },
-      });
-      mapInstance.addLayer({
-        id: "selected-halo",
-        type: "line",
-        source: "routes",
-        filter: ["==", ["get", "id"], SAMPLE_ROUTES[0].id],
-        paint: {
-          "line-color": "#fffdf2",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 7, 14, 11],
-          "line-opacity": 0.96,
-        },
-      });
-      mapInstance.addLayer({
-        id: "selected-route",
-        type: "line",
-        source: "routes",
-        filter: ["==", ["get", "id"], SAMPLE_ROUTES[0].id],
-        paint: {
-          "line-color": ACTIVITY_COLORS.running,
-          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 3.5, 14, 6],
-          "line-opacity": 1,
-        },
-      });
-      mapInstance.addSource("endpoints", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-      mapInstance.addLayer({
-        id: "endpoint-circles",
-        type: "circle",
-        source: "endpoints",
-        paint: {
-          "circle-radius": 9,
-          "circle-color": [
-            "match",
-            ["get", "kind"],
-            "start",
-            "#173f34",
-            "#f2684a",
-          ],
-          "circle-stroke-color": "#fffdf2",
-          "circle-stroke-width": 3,
-        },
-      });
-      mapInstance.addLayer({
-        id: "endpoint-labels",
-        type: "symbol",
-        source: "endpoints",
-        layout: {
-          "text-field": ["match", ["get", "kind"], "start", "A", "B"],
-          "text-size": 10,
-          "text-font": ["Noto Sans Regular"],
-        },
-        paint: { "text-color": "#ffffff" },
-      });
-      mapInstance.on("click", "routes", (event) => {
-        const id = event.features?.[0]?.properties?.id;
-        if (id) setSelectedId(String(id));
-      });
-      mapInstance.on("mouseenter", "routes", () => {
-        mapInstance.getCanvas().style.cursor = "pointer";
-      });
-      mapInstance.on("mouseleave", "routes", () => {
-        mapInstance.getCanvas().style.cursor = "";
-      });
+        const mapInstance = new AMapApi.Map(mapContainerRef.current, {
+          center: [120.134, 30.237],
+          zoom: 11.5,
+          viewMode: "2D",
+          mapStyle: "amap://styles/whitesmoke",
+          showIndoorMap: false,
+        });
+        map = mapInstance;
+        mapRef.current = mapInstance;
+        const ToolBar = (
+          AMapApi as typeof AMapApi & {
+            ToolBar: new (options: {
+              position: { right: string; bottom: string };
+            }) => AMap.Control;
+          }
+        ).ToolBar;
+        mapInstance.addControl(
+          new ToolBar({
+            position: { right: "24px", bottom: "76px" },
+          }),
+        );
         setMapReady(true);
-      });
+      } catch (error) {
+        console.error("Failed to initialize AMap", error);
+        setMapError(true);
+      }
     };
 
     void initializeMap();
 
     return () => {
       cancelled = true;
-      map?.remove();
+      map?.destroy();
       if (mapRef.current === map) mapRef.current = null;
     };
   }, []);
@@ -621,51 +497,92 @@ export function TrackViewer() {
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
     const map = mapRef.current;
-    (map.getSource("routes") as GeoJSONSource)?.setData(
-      toRouteGeoJSON(filteredRoutes),
-    );
-    const validSelected = selectedRoute;
-    const id = validSelected?.id ?? "";
-    map.setFilter("selected-halo", ["==", ["get", "id"], id]);
-    map.setFilter("selected-route", ["==", ["get", "id"], id]);
-    map.setPaintProperty(
-      "selected-route",
-      "line-color",
-      validSelected ? ACTIVITY_COLORS[validSelected.activity] : "#f2684a",
-    );
-    const start = validSelected?.points[0];
-    const finish = validSelected?.points.at(-1);
-    (map.getSource("endpoints") as GeoJSONSource)?.setData({
-      type: "FeatureCollection",
-      features:
-        start && finish
-          ? [
-              {
-                type: "Feature",
-                properties: { kind: "start" },
-                geometry: { type: "Point", coordinates: [start.lng, start.lat] },
-              },
-              {
-                type: "Feature",
-                properties: { kind: "finish" },
-                geometry: { type: "Point", coordinates: [finish.lng, finish.lat] },
-              },
-            ]
-          : [],
+    map.remove(routeOverlaysRef.current);
+    routeOverlaysRef.current = filteredRoutes.map((route) => {
+      const polyline = new AMap.Polyline({
+        path: amapPaths.get(route.id) ?? [],
+        strokeColor: ACTIVITY_COLORS[route.activity],
+        strokeOpacity: 0.66,
+        strokeWeight: 4,
+        lineJoin: "round",
+        lineCap: "round",
+        cursor: "pointer",
+        zIndex: 20,
+      });
+      polyline.on("click", () => setSelectedId(route.id));
+      return polyline;
     });
-  }, [filteredRoutes, selectedRoute, selectedId, mapReady]);
+    map.add(routeOverlaysRef.current);
+
+    return () => {
+      map.remove(routeOverlaysRef.current);
+      routeOverlaysRef.current = [];
+    };
+  }, [amapPaths, filteredRoutes, mapReady]);
 
   useEffect(() => {
-    if (!mapReady || !mapRef.current || !selectedRoute) return;
-    const bounds = getBounds([selectedRoute]);
-    if (bounds) {
-      mapRef.current.fitBounds(bounds, {
-        padding: { top: 110, right: 390, bottom: 90, left: 390 },
-        duration: 850,
-        maxZoom: 15,
-      });
-    }
-  }, [selectedId, mapReady, selectedRoute]);
+    if (!mapReady || !mapRef.current) return;
+    const map = mapRef.current;
+    map.remove(selectedOverlaysRef.current);
+    selectedOverlaysRef.current = [];
+    if (!selectedRoute?.points.length) return;
+
+    const path = amapPaths.get(selectedRoute.id) ?? [];
+    const start = path[0];
+    const finish = path.at(-1);
+    if (!start || !finish) return;
+
+    const halo = new AMap.Polyline({
+      path,
+      strokeColor: "#fffdf2",
+      strokeOpacity: 0.96,
+      strokeWeight: 11,
+      lineJoin: "round",
+      lineCap: "round",
+      zIndex: 40,
+    });
+    const highlight = new AMap.Polyline({
+      path,
+      strokeColor: ACTIVITY_COLORS[selectedRoute.activity],
+      strokeOpacity: 1,
+      strokeWeight: 6,
+      lineJoin: "round",
+      lineCap: "round",
+      zIndex: 41,
+    });
+    const startMarker = new AMap.Marker({
+      position: start,
+      content: '<span class="route-endpoint route-endpoint--start">A</span>',
+      anchor: "center",
+      zIndex: 42,
+    });
+    const finishMarker = new AMap.Marker({
+      position: finish,
+      content: '<span class="route-endpoint route-endpoint--finish">B</span>',
+      anchor: "center",
+      zIndex: 42,
+    });
+    selectedOverlaysRef.current = [
+      halo,
+      highlight,
+      startMarker,
+      finishMarker,
+    ];
+    map.add(selectedOverlaysRef.current);
+    map.setFitView(
+      [highlight],
+      false,
+      window.innerWidth < 760
+        ? [100, 32, 260, 32]
+        : [110, 390, 90, 390],
+      15,
+    );
+
+    return () => {
+      map.remove(selectedOverlaysRef.current);
+      selectedOverlaysRef.current = [];
+    };
+  }, [amapPaths, selectedRoute, mapReady]);
 
   const resetFilters = () => {
     setActivityFilter(new Set(ACTIVITY_ORDER));

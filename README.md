@@ -7,7 +7,7 @@ IndexedDB；原始健康文件和路线不会上传到业务服务器。
 ## 技术结构
 
 - React + TypeScript + Vite
-- MapLibre GL + OpenFreeMap
+- 高德地图 JavaScript API 2.0
 - Web Worker 流式解析 Apple 健康 ZIP
 - Dexie/IndexedDB 保存设备本地路线
 - 标准静态构建产物，可部署到任意静态托管平台
@@ -25,7 +25,10 @@ Cloudflare Worker。部署适配器位于托管平台的 Git 集成，不进入�
 ```bash
 nvm use
 npm ci
+cp .env.example .env.local
 ```
+
+在 `.env.local` 中填写高德开放平台的 Web 端（JS API）Key 和安全密钥。
 
 ## 本地开发
 
@@ -43,7 +46,7 @@ npm run check
 ```
 
 该命令依次执行 ESLint、TypeScript 检查、生产构建和构建产物测试。构建产物
-测试会确认地图 worker 与 Apple 健康导入 worker 已被正确打包和引用。
+测试会确认高德地图加载器与 Apple 健康导入 worker 已被正确打包和引用。
 
 单独运行：
 
@@ -71,5 +74,6 @@ npm run preview
 [腾讯云轻量应用服务器方案](docs/tencent-lighthouse.md)，包含 cpolar 无备案过渡
 入口、备案后的 Caddy 直连、GitHub Actions 原子发布和版本回滚。
 
-地图底图由 OpenFreeMap 提供。地图服务会收到常规瓦片请求，但完整运动路线和
-Apple 健康文件不会发送给地图服务。
+地图底图由高德地图提供。地图服务会收到正常的脚本、底图和网络元数据请求；
+Apple 健康文件不会发送给地图服务。WGS-84 坐标在浏览器内转换后作为地图覆盖物
+绘制，应用不会调用高德轨迹纠偏服务。

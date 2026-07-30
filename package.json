@@ -17,15 +17,16 @@
     "check": "npm run lint && npm run typecheck && npm test"
   },
   "dependencies": {
+    "@amap/amap-jsapi-loader": "^1.0.1",
     "@zip.js/zip.js": "^2.8.34",
     "dexie": "^4.4.4",
     "lucide-react": "^1.27.0",
-    "maplibre-gl": "^6.0.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "saxes": "^6.0.0"
   },
   "devDependencies": {
+    "@amap/amap-jsapi-types": "^0.0.15",
     "@eslint/js": "^10.0.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",

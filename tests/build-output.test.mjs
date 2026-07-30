@@ -15,16 +15,12 @@ test("builds a portable static application", async () => {
   assert.doesNotMatch(html, /vinext|_next|chatgpt\.site|codex-preview/i);
 });
 
-test("ships both application workers as versioned assets", async () => {
+test("ships the map loader and import worker as versioned assets", async () => {
   const assetNames = await readdir(assetsDirectory);
-  const mapWorker = assetNames.find((name) =>
-    /^maplibre-gl-worker-.*\.js$/.test(name),
-  );
   const importWorker = assetNames.find((name) =>
     /^apple-health\.worker-.*\.js$/.test(name),
   );
 
-  assert.ok(mapWorker, "MapLibre worker asset is missing");
   assert.ok(importWorker, "Apple Health import worker asset is missing");
 
   const scriptNames = assetNames.filter((name) => name.endsWith(".js"));
@@ -36,19 +32,13 @@ test("ships both application workers as versioned assets", async () => {
   );
 
   assert.ok(
-    scripts.some(({ source }) => source.includes(mapWorker)),
-    `${mapWorker} is emitted but not referenced by the application`,
+    scripts.some(({ source }) => source.includes("webapi.amap.com")),
+    "AMap loader is missing from the application bundle",
   );
   assert.ok(
     scripts.some(({ source }) => source.includes(importWorker)),
     `${importWorker} is emitted but not referenced by the application`,
   );
 
-  assert.equal(
-    assetNames.some((name) => name === "maplibre-gl-worker.mjs"),
-    false,
-    "unversioned MapLibre worker reference can break static deployments",
-  );
-
-  assert.equal(path.extname(mapWorker), ".js");
+  assert.equal(path.extname(importWorker), ".js");
 });

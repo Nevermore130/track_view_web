@@ -58,6 +58,19 @@ BASE_PATH=/repository-name/ npm run build
 
 ## 环境变量
 
-当前应用不需要业务环境变量。未来若增加公开配置，只使用 `VITE_` 前缀，并在
-`.env.example` 中列出变量名。任何 `VITE_` 变量都会进入浏览器包，不能存放
-密钥、令牌或 Apple 健康数据。
+构建需要以下高德地图公开配置：
+
+```text
+VITE_AMAP_KEY
+VITE_AMAP_SECURITY_CODE
+```
+
+本地开发时复制 `.env.example` 为 `.env.local` 并填写。GitHub Actions 构建时，
+在仓库 `Settings → Secrets and variables → Actions → Variables` 中创建同名
+Repository variables。它们会在 `verify` 阶段写入静态产物，腾讯云部署任务继续
+复用已经验证过的同一份 `dist/`。
+
+高德 Web Key 和安全密钥都会出现在浏览器中，因此不能当作服务端秘密。应在高德
+控制台限制允许使用的域名，并加入本地域名和实际 cpolar 公网域名；cpolar 地址
+变化后需要同步更新域名限制。任何真正的私钥、令牌或 Apple 健康数据都不能使用
+`VITE_` 变量。
