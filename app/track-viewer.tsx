@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import * as maplibregl from "maplibre-gl";
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import {
   ArrowDownUp,
@@ -482,6 +483,7 @@ export function TrackViewer() {
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
+    maplibregl.setWorkerUrl(maplibreWorkerUrl);
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: "https://tiles.openfreemap.org/styles/liberty",

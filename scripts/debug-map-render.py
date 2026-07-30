@@ -35,6 +35,19 @@ with sync_playwright() as playwright:
             }
         ),
     )
+    page.on(
+        "response",
+        lambda response: events.append(
+            {
+                "kind": f"response:{response.status}",
+                "message": response.url,
+            }
+        )
+        if response.status >= 400
+        or "maplibre" in response.url
+        or "openfreemap" in response.url
+        else None,
+    )
 
     page.goto(url, wait_until="domcontentloaded", timeout=30_000)
     page.wait_for_timeout(8_000)
@@ -64,7 +77,13 @@ fatal_events = [
     event
     for event in events
     if event["kind"] == "pageerror"
-    or "maplibre-gl-worker" in event["message"]
+    or (
+        event["kind"] == "requestfailed"
+        and (
+            "maplibre-gl-worker" in event["message"]
+            or "maplibre-gl-shared" in event["message"]
+        )
+    )
 ]
 if (
     map_shell_count != 1
