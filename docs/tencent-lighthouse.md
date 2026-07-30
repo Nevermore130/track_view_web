@@ -176,15 +176,9 @@ HTTP 隧道会生成 HTTP 和 HTTPS 公网地址。免费套餐的随机地址�
 `region`、`subdomain` 加入隧道配置。`region` 必须与预留二级域名时选择的区域
 完全一致，不能直接照抄示例值。
 
-确认 cpolar 隧道状态为在线，取得 HTTPS 公网地址。即使此时访问返回 404，也
-说明公网隧道已经连接到 Caddy。把该地址写入 GitHub Variable：
-
-```text
-LIGHTHOUSE_SITE_URL=https://YOUR_CPOLAR_ADDRESS
-```
-
-随后再执行第 7 节的首次发布。Actions 会先激活静态版本，再访问这个公网地址
-完成发布验证。发布完成后同时检查：
+确认 cpolar 隧道状态为在线并取得 HTTPS 公网地址。公网地址只在 cpolar 配置和
+控制台中维护，不需要同步到 GitHub。即使首次访问返回 404，也说明隧道已经连接
+到 Caddy；随后执行第 7 节的首次发布。发布完成后检查：
 
 ```bash
 curl -I http://127.0.0.1:8080
@@ -235,7 +229,6 @@ Caddy 在域名解析生效且 80/443 端口可访问后自动获取 HTTPS 证�
 
 | 名称 | 示例 | 说明 |
 | --- | --- | --- |
-| `LIGHTHOUSE_SITE_URL` | `https://routes.example.com` | 发布后的公网健康检查 |
 | `LIGHTHOUSE_SSH_PORT` | `22` | 可省略，默认 22 |
 | `TENCENT_LIGHTHOUSE_DEPLOY_ENABLED` | `true` | `main` 更新后自动发布 |
 
@@ -260,11 +253,12 @@ ssh-keyscan -p 22 SERVER_IP
 3. 上传到发布用户权限为 `0700` 的私有暂存目录，再解压到
    `/srv/trace-atlas/releases/<git-sha>`。
 4. 原子切换 `/srv/trace-atlas/current`。
-5. 从 GitHub Runner 访问 `LIGHTHOUSE_SITE_URL` 确认公网入口可用。
+5. 通过 SSH 请求 `http://127.0.0.1:8080/`，确认 Caddy 能正常提供新版本。
 
 所有生产发布共享同一个 Actions concurrency group，不会并行切换版本。发布过程
 不会重启 Caddy，也不会出现目录被上传一半的状态。手动触发也只允许从 `main`
-分支发布。
+分支发布。cpolar 公网地址不再作为 GitHub 发布的重复配置；systemd 只负责保证
+cpolar 进程运行，公网隧道可用性仍应通过 cpolar 控制台或独立外部监控确认。
 
 ## 8. 回滚
 

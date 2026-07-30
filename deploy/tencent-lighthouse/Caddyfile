@@ -26,3 +26,9 @@
 		format json
 	}
 }
+
+http://:8081 {
+	root * /srv/trace-atlas/current
+	try_files {path} /index.html
+	file_server
+}

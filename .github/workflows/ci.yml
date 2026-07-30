@@ -110,18 +110,5 @@ jobs:
           ssh "${ssh_options[@]}" -p "$LIGHTHOUSE_SSH_PORT" "$ssh_target" \
             "bash -s -- '$GITHUB_SHA'" \
             < deploy/tencent-lighthouse/activate-release.sh
-
-      - name: Verify public site
-        env:
-          LIGHTHOUSE_SITE_URL: ${{ vars.LIGHTHOUSE_SITE_URL }}
-        run: |
-          test -n "$LIGHTHOUSE_SITE_URL"
-          curl \
-            --fail \
-            --location \
-            --retry 5 \
-            --retry-all-errors \
-            --show-error \
-            --silent \
-            "${LIGHTHOUSE_SITE_URL%/}/" \
-            > /dev/null
+          ssh "${ssh_options[@]}" -p "$LIGHTHOUSE_SSH_PORT" "$ssh_target" \
+            'curl --fail --retry 5 --retry-all-errors --show-error --silent http://127.0.0.1:8080/ > /dev/null'
