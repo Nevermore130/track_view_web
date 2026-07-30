@@ -233,11 +233,11 @@ export const SAMPLE_ROUTES: RouteRecord[] = [
 ];
 
 export const ACTIVITY_COLORS: Record<ActivityType, string> = {
-  running: "#f2684a",
-  cycling: "#2f7ee6",
-  walking: "#d89d2d",
-  hiking: "#2e9569",
-  other: "#8067c8",
+  running: "#ff6b6b",
+  cycling: "#4d8dff",
+  walking: "#ffd93d",
+  hiking: "#53d89b",
+  other: "#c4b5fd",
 };
 
 export const activityFromAppleType = (value = ""): ActivityType => {
