@@ -67,7 +67,9 @@ npm run preview
 ## 发布
 
 推荐使用 Git PR → CI → 预览部署 → 合并 `main` → 生产部署的流程。详细配置见
-[发布流程](docs/deployment.md)。
+[发布流程](docs/deployment.md)。需要部署到自有服务器时，项目也提供了
+[腾讯云轻量应用服务器方案](docs/tencent-lighthouse.md)，包含 Caddy 自动 HTTPS、
+GitHub Actions 原子发布和版本回滚。
 
 地图底图由 OpenFreeMap 提供。地图服务会收到常规瓦片请求，但完整运动路线和
 Apple 健康文件不会发送给地图服务。

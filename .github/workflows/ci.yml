@@ -4,13 +4,20 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_tencent_lighthouse:
+        description: Deploy the verified build to Tencent Cloud Lighthouse
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   verify:
@@ -40,3 +47,81 @@ jobs:
           path: dist
           if-no-files-found: error
           retention-days: 7
+
+  deploy-tencent-lighthouse:
+    name: Deploy / Tencent Cloud Lighthouse
+    needs: verify
+    if: >-
+      (github.event_name == 'push' &&
+      vars.TENCENT_LIGHTHOUSE_DEPLOY_ENABLED == 'true') ||
+      (github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.deploy_tencent_lighthouse)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    concurrency:
+      group: tencent-lighthouse-production
+      cancel-in-progress: false
+
+    steps:
+      - name: Check out deployment scripts
+        uses: actions/checkout@v6
+
+      - name: Download verified production artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: trace-atlas-${{ github.sha }}
+          path: dist
+
+      - name: Configure pinned SSH host identity
+        env:
+          LIGHTHOUSE_SSH_KEY: ${{ secrets.LIGHTHOUSE_SSH_KEY }}
+          LIGHTHOUSE_KNOWN_HOSTS: ${{ secrets.LIGHTHOUSE_KNOWN_HOSTS }}
+        run: |
+          test -n "$LIGHTHOUSE_SSH_KEY"
+          test -n "$LIGHTHOUSE_KNOWN_HOSTS"
+          install -m 0700 -d "$HOME/.ssh"
+          printf '%s\n' "$LIGHTHOUSE_SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$LIGHTHOUSE_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 0600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+
+      - name: Upload and atomically activate release
+        env:
+          LIGHTHOUSE_HOST: ${{ secrets.LIGHTHOUSE_HOST }}
+          LIGHTHOUSE_USER: ${{ secrets.LIGHTHOUSE_USER }}
+          LIGHTHOUSE_SSH_PORT: ${{ vars.LIGHTHOUSE_SSH_PORT || '22' }}
+        run: |
+          test -n "$LIGHTHOUSE_HOST"
+          test -n "$LIGHTHOUSE_USER"
+          archive="trace-atlas-${GITHUB_SHA}.tar.gz"
+          ssh_target="${LIGHTHOUSE_USER}@${LIGHTHOUSE_HOST}"
+          ssh_options=(
+            -o BatchMode=yes
+            -o ConnectTimeout=10
+            -o IdentitiesOnly=yes
+          )
+          tar -C dist -czf "$archive" .
+          ssh "${ssh_options[@]}" -p "$LIGHTHOUSE_SSH_PORT" "$ssh_target" \
+            'install -d -m 0700 "$HOME/.trace-atlas-staging"'
+          scp "${ssh_options[@]}" -P "$LIGHTHOUSE_SSH_PORT" \
+            "$archive" \
+            "${ssh_target}:.trace-atlas-staging/${archive}"
+          ssh "${ssh_options[@]}" -p "$LIGHTHOUSE_SSH_PORT" "$ssh_target" \
+            "bash -s -- '$GITHUB_SHA'" \
+            < deploy/tencent-lighthouse/activate-release.sh
+
+      - name: Verify public site
+        env:
+          LIGHTHOUSE_SITE_URL: ${{ vars.LIGHTHOUSE_SITE_URL }}
+        run: |
+          test -n "$LIGHTHOUSE_SITE_URL"
+          curl \
+            --fail \
+            --location \
+            --retry 5 \
+            --retry-all-errors \
+            --show-error \
+            --silent \
+            "${LIGHTHOUSE_SITE_URL%/}/" \
+            > /dev/null
