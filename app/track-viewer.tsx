@@ -244,6 +244,25 @@ const activityIcons = {
   other: Footprints,
 };
 
+const dateParts = (date: string) => {
+  const match = date.match(
+    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/,
+  );
+  if (!match) return new Date(date);
+  return new Date(
+    Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+      Number(match[4]),
+      Number(match[5]),
+    ),
+  );
+};
+
+const yearFromDate = (date: string) =>
+  Number(date.match(/^(\d{4})/)?.[1] ?? new Date(date).getUTCFullYear());
+
 const formatDate = (date: string, language: Language) =>
   new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
     year: "numeric",
@@ -252,7 +271,8 @@ const formatDate = (date: string, language: Language) =>
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  }).format(new Date(date));
+    timeZone: "UTC",
+  }).format(dateParts(date));
 
 const formatDuration = (seconds: number) => {
   const hours = Math.floor(seconds / 3600);
@@ -406,7 +426,7 @@ export function TrackViewer() {
   const routes = isSample ? SAMPLE_ROUTES : libraryRoutes;
   const years = useMemo(
     () =>
-      [...new Set(routes.map((route) => new Date(route.startDate).getFullYear()))]
+      [...new Set(routes.map((route) => yearFromDate(route.startDate)))]
         .sort((a, b) => b - a),
     [routes],
   );
@@ -417,11 +437,10 @@ export function TrackViewer() {
 
   const filteredRoutes = useMemo(() => {
     const filtered = routes.filter((route) => {
-      const date = new Date(route.startDate);
       const localDate = route.startDate.slice(0, 10);
       return (
         activityFilter.has(route.activity) &&
-        (!yearFilter.size || yearFilter.has(date.getFullYear())) &&
+        (!yearFilter.size || yearFilter.has(yearFromDate(route.startDate))) &&
         (sourceFilter === "all" || route.sourceName === sourceFilter) &&
         (!startDate || localDate >= startDate) &&
         (!endDate || localDate <= endDate)
@@ -822,7 +841,7 @@ export function TrackViewer() {
             <div className="summary-heading">
               <div>
                 <span className="eyebrow">
-                  {new Date().getFullYear()} / {filteredRoutes.length} {t.routes}
+                  {new Date().getUTCFullYear()} / {filteredRoutes.length} {t.routes}
                 </span>
                 <h1>{isSample ? t.sampleLibrary : t.library}</h1>
               </div>

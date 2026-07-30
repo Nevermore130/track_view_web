@@ -44,6 +44,12 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    // MapLibre ships its Web Worker as a sibling ESM file. Vite's dependency
+    // optimizer rewrites that URL into .vite/deps but does not emit the worker,
+    // leaving the map canvas blank. Serve the package as authored instead.
+    optimizeDeps: {
+      exclude: ["maplibre-gl"],
+    },
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,
