@@ -1,5 +1,3 @@
-"use client";
-
 import Dexie, { type Table } from "dexie";
 import type { RouteRecord } from "./routes";
 

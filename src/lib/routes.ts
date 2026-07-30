@@ -1,3 +1,4 @@
+// Canonical route model shared by imports, storage, filtering, and rendering.
 export type ActivityType =
   | "running"
   | "cycling"

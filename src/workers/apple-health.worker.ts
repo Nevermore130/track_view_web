@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+// Keeps large Apple Health archives off the main UI thread.
+
 import {
   BlobReader,
   type Entry,

@@ -1,5 +1,3 @@
-"use client";
-
 import {
   useCallback,
   useEffect,
@@ -7,9 +5,12 @@ import {
   useRef,
   useState,
 } from "react";
-import * as maplibregl from "maplibre-gl";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
+import type {
+  GeoJSONSource,
+  LngLatBoundsLike,
+  Map as MapLibreMap,
+} from "maplibre-gl";
 import {
   ArrowDownUp,
   Bike,
@@ -334,9 +335,20 @@ const buildElevationPath = (route: RouteRecord) => {
 const getBounds = (routes: RouteRecord[]) => {
   const points = routes.flatMap((route) => route.points);
   if (!points.length) return null;
-  const bounds = new maplibregl.LngLatBounds();
-  points.forEach((point) => bounds.extend([point.lng, point.lat]));
-  return bounds;
+  let minLng = Number.POSITIVE_INFINITY;
+  let minLat = Number.POSITIVE_INFINITY;
+  let maxLng = Number.NEGATIVE_INFINITY;
+  let maxLat = Number.NEGATIVE_INFINITY;
+  for (const point of points) {
+    minLng = Math.min(minLng, point.lng);
+    minLat = Math.min(minLat, point.lat);
+    maxLng = Math.max(maxLng, point.lng);
+    maxLat = Math.max(maxLat, point.lat);
+  }
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ] as LngLatBoundsLike;
 };
 
 const toRouteGeoJSON = (routes: RouteRecord[]) =>
@@ -483,30 +495,38 @@ export function TrackViewer() {
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
-    maplibregl.setWorkerUrl(maplibreWorkerUrl);
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: "https://tiles.openfreemap.org/styles/liberty",
-      center: [120.13, 30.24],
-      zoom: 11.5,
-      attributionControl: false,
-    });
-    mapRef.current = map;
-    map.addControl(
-      new maplibregl.NavigationControl({ showCompass: false }),
-      "bottom-right",
-    );
-    map.addControl(
-      new maplibregl.AttributionControl({ compact: true }),
-      "bottom-right",
-    );
-    map.on("error", () => setMapError(true));
-    map.on("load", () => {
-      map.addSource("routes", {
+    let cancelled = false;
+    let map: MapLibreMap | null = null;
+
+    const initializeMap = async () => {
+      const maplibregl = await import("maplibre-gl");
+      if (cancelled || !mapContainerRef.current || mapRef.current) return;
+
+      maplibregl.setWorkerUrl(maplibreWorkerUrl);
+      const mapInstance = new maplibregl.Map({
+        container: mapContainerRef.current,
+        style: "https://tiles.openfreemap.org/styles/liberty",
+        center: [120.13, 30.24],
+        zoom: 11.5,
+        attributionControl: false,
+      });
+      map = mapInstance;
+      mapRef.current = mapInstance;
+      mapInstance.addControl(
+        new maplibregl.NavigationControl({ showCompass: false }),
+        "bottom-right",
+      );
+      mapInstance.addControl(
+        new maplibregl.AttributionControl({ compact: true }),
+        "bottom-right",
+      );
+      mapInstance.on("error", () => setMapError(true));
+      mapInstance.on("load", () => {
+      mapInstance.addSource("routes", {
         type: "geojson",
         data: toRouteGeoJSON(SAMPLE_ROUTES),
       });
-      map.addLayer({
+      mapInstance.addLayer({
         id: "route-shadow",
         type: "line",
         source: "routes",
@@ -517,7 +537,7 @@ export function TrackViewer() {
           "line-blur": 1.2,
         },
       });
-      map.addLayer({
+      mapInstance.addLayer({
         id: "routes",
         type: "line",
         source: "routes",
@@ -539,7 +559,7 @@ export function TrackViewer() {
           "line-width": ["interpolate", ["linear"], ["zoom"], 8, 2, 14, 4],
         },
       });
-      map.addLayer({
+      mapInstance.addLayer({
         id: "selected-halo",
         type: "line",
         source: "routes",
@@ -550,7 +570,7 @@ export function TrackViewer() {
           "line-opacity": 0.96,
         },
       });
-      map.addLayer({
+      mapInstance.addLayer({
         id: "selected-route",
         type: "line",
         source: "routes",
@@ -561,11 +581,11 @@ export function TrackViewer() {
           "line-opacity": 1,
         },
       });
-      map.addSource("endpoints", {
+      mapInstance.addSource("endpoints", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
-      map.addLayer({
+      mapInstance.addLayer({
         id: "endpoint-circles",
         type: "circle",
         source: "endpoints",
@@ -582,7 +602,7 @@ export function TrackViewer() {
           "circle-stroke-width": 3,
         },
       });
-      map.addLayer({
+      mapInstance.addLayer({
         id: "endpoint-labels",
         type: "symbol",
         source: "endpoints",
@@ -593,21 +613,26 @@ export function TrackViewer() {
         },
         paint: { "text-color": "#ffffff" },
       });
-      map.on("click", "routes", (event) => {
+      mapInstance.on("click", "routes", (event) => {
         const id = event.features?.[0]?.properties?.id;
         if (id) setSelectedId(String(id));
       });
-      map.on("mouseenter", "routes", () => {
-        map.getCanvas().style.cursor = "pointer";
+      mapInstance.on("mouseenter", "routes", () => {
+        mapInstance.getCanvas().style.cursor = "pointer";
       });
-      map.on("mouseleave", "routes", () => {
-        map.getCanvas().style.cursor = "";
+      mapInstance.on("mouseleave", "routes", () => {
+        mapInstance.getCanvas().style.cursor = "";
       });
-      setMapReady(true);
-    });
+        setMapReady(true);
+      });
+    };
+
+    void initializeMap();
+
     return () => {
-      map.remove();
-      mapRef.current = null;
+      cancelled = true;
+      map?.remove();
+      if (mapRef.current === map) mapRef.current = null;
     };
   }, []);
 
