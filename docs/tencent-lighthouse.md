@@ -8,15 +8,72 @@
   地址，cpolar 建立出站隧道并提供公网 HTTPS。
 - **公网直连模式**：备案完成后，由 Caddy 直接监听 80/443 并自动管理证书。
 
+## 部署原理
+
+cpolar 模式下，一次网页访问经过以下链路：
+
 ```text
-GitHub Actions
-  └─ npm run check
-      └─ dist/ → SSH → /srv/trace-atlas/releases/<git-sha>
-                            └─ current 原子切换
-                                  └─ Caddy
-                                      ├─ cpolar 隧道 → HTTPS
-                                      └─ 公网直连 → HTTPS
+用户浏览器
+  └─ HTTPS → cpolar 公网入口
+                  └─ HTTP → 腾讯云服务器 127.0.0.1:8080
+                                      └─ Caddy 容器
+                                            └─ /srv/trace-atlas/current
 ```
+
+### 1. GitHub Actions 负责构建和发布
+
+代码进入 `main` 后，GitHub Actions 运行 lint、类型检查、测试和生产构建，生成
+标准静态目录 `dist/`。当自动部署开关已启用，或从 `main` 手动触发部署时，Actions
+才会通过专用 SSH 用户把产物上传到腾讯云服务器，每次发布写入独立的 Git SHA
+目录：
+
+```text
+/srv/trace-atlas/releases/<git-sha>
+```
+
+发布脚本检查产物中存在 `index.html` 后，把符号链接原子切换到新版本：
+
+```text
+/srv/trace-atlas/current
+  → /srv/trace-atlas/releases/<git-sha>
+```
+
+仍在保留范围内的旧目录不会被原地覆盖，因此线上版本能追溯到 Git commit，也能
+通过重新指向旧目录快速回滚。发布脚本默认只保留最近 5 个版本。切换完成后，
+Actions 通过 SSH 请求 `http://127.0.0.1:8080/`，确认 Caddy 已经能提供新版本。
+
+### 2. Caddy 负责静态网页
+
+Caddy 运行在 Docker 容器中，读取 `/srv/trace-atlas/current`。在 cpolar 模式下，
+容器端口只映射到服务器回环地址 `127.0.0.1:8080`，腾讯云公网 IP 无法直接访问，
+因此服务器不需要开放网站的公网 80、443 端口。
+
+Caddy 负责静态文件、单页应用回退、缓存响应头和 gzip/zstd 压缩。它不运行 Node.js
+业务服务，也不保存 Apple 健康文件。
+
+### 3. cpolar 负责公网入口
+
+cpolar 作为服务器上的 systemd 服务运行，HTTP 隧道的上游配置为：
+
+```yaml
+addr: 127.0.0.1:8080
+```
+
+用户访问 cpolar 提供的 HTTPS 地址时，cpolar 在公网终止 HTTPS，再把 HTTP 请求
+转发给同一服务器上的 Caddy。公网地址、固定二级域名、区域和 HTTPS 重定向都只在
+cpolar 配置或控制台中维护，不需要同步到 GitHub。
+
+因此 cpolar 入口与网页发布彼此解耦：更换 cpolar 地址不需要重新构建网页，发布
+新网页也不需要修改隧道配置。
+
+### 4. 用户数据边界
+
+腾讯云服务器和 cpolar 负责提供应用自身的 HTML、CSS、JavaScript 等静态资源，
+也会接收访问站点时产生的常规请求路径、请求头和网络元数据。地图样式和瓦片由
+浏览器直接请求 OpenFreeMap，不经过腾讯云服务器或 cpolar。
+
+Apple 健康导出包仍由用户在浏览器中选择，并在浏览器本地解析和保存；应用不会
+把完整健康文件或路线 GeoJSON 主动上传到腾讯云、cpolar 或地图服务。
 
 ## 方案特点
 
