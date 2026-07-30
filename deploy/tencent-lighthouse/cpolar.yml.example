@@ -1,0 +1,13 @@
+authtoken: REPLACE_WITH_CPOLAR_AUTHTOKEN
+web_addr: false
+
+tunnels:
+  trace-atlas:
+    proto: http
+    addr: 127.0.0.1:8080
+    inspect: false
+    redirect_https: true
+
+# 需要固定地址时，先在 cpolar 控制台预留二级域名，再为上面的隧道增加：
+#    region: REPLACE_WITH_RESERVATION_REGION
+#    subdomain: YOUR_RESERVED_SUBDOMAIN

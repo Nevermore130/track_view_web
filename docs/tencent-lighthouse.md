@@ -1,22 +1,29 @@
 # 腾讯云轻量应用服务器部署
 
 本方案把 CI 产出的 `dist/` 作为不可变版本上传到腾讯云轻量应用服务器，再通过
-原子符号链接切换线上版本。服务器仅运行 Caddy，不安装 Node.js，也不接收或
-解析 Apple 健康文件。
+原子符号链接切换线上版本。服务器不安装 Node.js，也不接收或解析 Apple 健康
+文件。公网入口支持两种模式：
+
+- **cpolar 模式**：适合当前没有 ICP 备案的过渡阶段。Caddy 仅监听服务器回环
+  地址，cpolar 建立出站隧道并提供公网 HTTPS。
+- **公网直连模式**：备案完成后，由 Caddy 直接监听 80/443 并自动管理证书。
 
 ```text
 GitHub Actions
   └─ npm run check
       └─ dist/ → SSH → /srv/trace-atlas/releases/<git-sha>
                             └─ current 原子切换
-                                  └─ Caddy → HTTPS
+                                  └─ Caddy
+                                      ├─ cpolar 隧道 → HTTPS
+                                      └─ 公网直连 → HTTPS
 ```
 
 ## 方案特点
 
 - 每个线上版本对应一个完整 Git commit，可快速回滚。
 - 服务器不执行项目构建，不需要保存仓库或 npm 凭证。
-- Caddy 自动申请、续期 HTTPS 证书，并提供 gzip/zstd 压缩。
+- cpolar 模式由 cpolar 提供公网 HTTPS；直连模式由 Caddy 自动管理证书。
+- Caddy 提供 gzip/zstd 压缩，两种入口共享同一静态站点。
 - 带哈希的 `/assets/` 长期缓存，HTML 不缓存，避免新旧版本混用。
 - SSH 校验固定的主机指纹，不在 CI 中临时信任 `ssh-keyscan` 结果。
 - 默认保留最近 5 个版本；发布脚本只会清理受控版本目录。
@@ -30,7 +37,20 @@ GitHub Actions
 为 Linux 实例绑定 SSH 密钥。腾讯云只保存公钥，平台生成的私钥仅能下载一次，
 需要妥善保存。
 
-在轻量应用服务器防火墙中配置：
+### cpolar 模式防火墙
+
+cpolar 客户端从服务器主动建立出站连接，因此不需要向公网开放网站端口：
+
+| 协议 | 端口 | 来源 | 用途 |
+| --- | --- | --- | --- |
+| TCP | 22 | 见下方 SSH 策略 | SSH 发布 |
+
+删除或关闭公网 80、443 规则。Caddy 只绑定 `127.0.0.1:8080`，无法通过服务器
+公网 IP 直接访问。
+
+### 公网直连模式防火墙
+
+备案完成并切换直连模式后配置：
 
 | 协议 | 端口 | 来源 | 用途 |
 | --- | --- | --- | --- |
@@ -51,8 +71,9 @@ GitHub 托管 Runner 的出口 IP 会变化，不能直接套用“只允许固�
 腾讯云轻量应用服务器的实例防火墙只管理入流量；操作系统自身启用 UFW 时也要
 同步放行这些端口。
 
-如果服务器位于中国大陆，网站对外服务前必须完成 ICP 备案。境外或中国香港
-地域不适用中国大陆服务器的这项前置要求。
+如果服务器位于中国大陆，通过服务器公网 IP 和自有域名直接提供网站服务前必须
+完成 ICP 备案。cpolar 模式使用 cpolar 分配的公网入口作为过渡方案；若绑定自有
+域名，仍需根据域名、接入地域和 cpolar 套餐确认备案要求。
 
 腾讯云参考：
 
@@ -101,6 +122,8 @@ sudo chmod 0600 /home/trace-deploy/.ssh/authorized_keys
 ```bash
 scp deploy/tencent-lighthouse/Caddyfile \
   deploy/tencent-lighthouse/compose.yaml \
+  deploy/tencent-lighthouse/cpolar.env.example \
+  deploy/tencent-lighthouse/cpolar.yml.example \
   deploy/tencent-lighthouse/lighthouse.env.example \
   deploy/tencent-lighthouse/activate-release.sh \
   LOGIN_USER@SERVER_IP:/tmp/
@@ -114,26 +137,81 @@ sudo install -m 0644 /tmp/compose.yaml /opt/trace-atlas/compose.yaml
 sudo install -m 0755 \
   /tmp/activate-release.sh \
   /opt/trace-atlas/activate-release.sh
+```
+
+## 4. 当前推荐：启动 cpolar 模式
+
+使用 cpolar 环境配置：
+
+```bash
+sudo install -m 0600 \
+  /tmp/cpolar.env.example \
+  /opt/trace-atlas/.env
+cd /opt/trace-atlas
+sudo docker compose --profile cpolar config
+sudo docker compose --profile cpolar pull
+sudo docker compose --profile cpolar up -d
+```
+
+首次发布前 `/srv/trace-atlas/current` 尚不存在，因此本地地址暂时返回 404 是
+正常现象。按照 cpolar 官方 Linux 安装文档安装客户端并完成 token 认证，然后
+安装配置：
+
+```bash
+sudo install -m 0600 \
+  /tmp/cpolar.yml.example \
+  /usr/local/etc/cpolar/cpolar.yml
+sudo editor /usr/local/etc/cpolar/cpolar.yml
+sudo systemctl enable cpolar
+sudo systemctl restart cpolar
+sudo systemctl status cpolar
+```
+
+必须把 `REPLACE_WITH_CPOLAR_AUTHTOKEN` 换成 cpolar 控制台提供的 token。配置将
+cpolar Web UI 关闭，并把名为 `trace-atlas` 的 HTTP 隧道转发到
+`127.0.0.1:8080`。
+
+HTTP 隧道会生成 HTTP 和 HTTPS 公网地址。免费套餐的随机地址会定期变化，不适合
+长期公开站点；需要稳定地址时，在 cpolar 控制台预留固定二级域名，并把
+`region`、`subdomain` 加入隧道配置。`region` 必须与预留二级域名时选择的区域
+完全一致，不能直接照抄示例值。
+
+确认 cpolar 隧道状态为在线，取得 HTTPS 公网地址。即使此时访问返回 404，也
+说明公网隧道已经连接到 Caddy。把该地址写入 GitHub Variable：
+
+```text
+LIGHTHOUSE_SITE_URL=https://YOUR_CPOLAR_ADDRESS
+```
+
+随后再执行第 7 节的首次发布。Actions 会先激活静态版本，再访问这个公网地址
+完成发布验证。发布完成后同时检查：
+
+```bash
+curl -I http://127.0.0.1:8080
+curl -I https://YOUR_CPOLAR_ADDRESS
+```
+
+cpolar 官方参考：[Linux 安装、配置文件和 HTTP 隧道](https://www.cpolar.com/docs)。
+
+## 5. 备案后切换公网直连模式
+
+把直连环境模板安装为 `/opt/trace-atlas/.env`，然后替换域名和邮箱：
+
+```bash
 sudo install -m 0600 \
   /tmp/lighthouse.env.example \
   /opt/trace-atlas/.env
 sudo editor /opt/trace-atlas/.env
 ```
 
-域名部署的配置示例：
-
-```dotenv
-SITE_ADDRESS=routes.example.com
-ACME_EMAIL=admin@example.com
-```
-
 先把域名的 A 记录指向实例公网 IP，再启动服务：
 
 ```bash
 cd /opt/trace-atlas
-sudo docker compose config
-sudo docker compose pull
-sudo docker compose up -d
+sudo docker compose --profile cpolar down
+sudo docker compose --profile direct config
+sudo docker compose --profile direct pull
+sudo docker compose --profile direct up -d
 sudo docker compose ps
 ```
 
@@ -141,11 +219,7 @@ Caddy 在域名解析生效且 80/443 端口可访问后自动获取 HTTPS 证�
 在 Docker 命名卷中，重建容器不会丢失。首次发布之前访问网站会返回 404，这是
 因为 `/srv/trace-atlas/current` 尚未创建。
 
-如果暂时只使用公网 IP，可在 `.env` 中写
-`SITE_ADDRESS=http://SERVER_IP`；这只适合部署验证，正式公开站点应使用域名和
-HTTPS。
-
-## 4. 配置 GitHub Environment
+## 6. 配置 GitHub Environment
 
 在 GitHub 仓库创建 `production` Environment。推荐为该环境设置人工批准规则，
 并将允许部署的分支限制为 `main`，然后添加以下 Secrets：
@@ -174,7 +248,7 @@ ssh-keyscan -p 22 SERVER_IP
 
 不要在 GitHub Actions 运行期间临时扫描并信任主机，否则无法抵御中间人攻击。
 
-## 5. 首次发布与日常发布
+## 7. 首次发布与日常发布
 
 可以在 GitHub 的 **Actions → CI → Run workflow** 中勾选
 `Deploy the verified build to Tencent Cloud Lighthouse` 完成首次发布。
@@ -186,13 +260,13 @@ ssh-keyscan -p 22 SERVER_IP
 3. 上传到发布用户权限为 `0700` 的私有暂存目录，再解压到
    `/srv/trace-atlas/releases/<git-sha>`。
 4. 原子切换 `/srv/trace-atlas/current`。
-5. 从 GitHub Runner 访问公网 HTTPS 地址确认发布成功。
+5. 从 GitHub Runner 访问 `LIGHTHOUSE_SITE_URL` 确认公网入口可用。
 
 所有生产发布共享同一个 Actions concurrency group，不会并行切换版本。发布过程
 不会重启 Caddy，也不会出现目录被上传一半的状态。手动触发也只允许从 `main`
 分支发布。
 
-## 6. 回滚
+## 8. 回滚
 
 查看服务器中仍然保留的版本：
 
@@ -211,21 +285,22 @@ sudo -u trace-deploy \
 该操作只切换符号链接，无需重新构建或重启容器。发布脚本默认保留最近 5 个版本，
 可通过服务器端环境变量 `TRACE_ATLAS_KEEP_RELEASES` 调整。
 
-## 7. 运维检查
+## 9. 运维检查
 
 ```bash
 cd /opt/trace-atlas
-sudo docker compose ps
-sudo docker compose logs --tail=100 web
-curl -I https://routes.example.com
+sudo docker compose --profile cpolar ps
+sudo docker compose --profile cpolar logs --tail=100 web-cpolar
+sudo systemctl status cpolar
+curl -I https://YOUR_CPOLAR_ADDRESS
 ```
 
 更新 Caddy 镜像时先查看发行说明，在低流量时段执行：
 
 ```bash
 cd /opt/trace-atlas
-sudo docker compose pull
-sudo docker compose up -d
+sudo docker compose --profile cpolar pull
+sudo docker compose --profile cpolar up -d
 ```
 
 Caddy 配置使用官方 `caddy:2.11.4-alpine` 镜像。升级版本需要在仓库中修改并走

@@ -23,7 +23,8 @@ Cloudflare Pages 的 Git 集成会为 PR 创建预览部署，并在 `main` 更�
 需要自行管理服务器或希望使用腾讯云时，可采用项目内置的轻量应用服务器方案：
 
 - GitHub Actions 只上传已经通过 CI 的 `dist/`。
-- Caddy 容器负责静态文件、压缩和自动 HTTPS。
+- Caddy 容器负责静态文件和压缩；直连模式由 Caddy 自动管理 HTTPS。
+- 没有 ICP 备案时，可让 Caddy 只监听回环地址并由 cpolar 提供公网 HTTPS。
 - 每次发布写入独立 Git SHA 目录，再原子切换 `current`。
 - 默认保留最近 5 个版本，可在服务器上快速回滚。
 
