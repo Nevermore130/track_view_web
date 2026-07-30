@@ -24,13 +24,11 @@ import {
   LocateFixed,
   Map as MapIcon,
   Menu,
-  Moon,
   Mountain,
   PersonStanding,
   Route,
   ShieldCheck,
   Sparkles,
-  Sun,
   Upload,
   X,
 } from "lucide-react";
@@ -45,7 +43,6 @@ import {
 
 type Language = "zh" | "en";
 type UnitSystem = "metric" | "imperial";
-type Theme = "light" | "dark";
 type SortMode = "date" | "distance" | "duration" | "ascent";
 type ImportProgress = {
   stage: string;
@@ -134,7 +131,6 @@ const copy = {
     largeFile: "这个文件较大，建议改用桌面浏览器导入。",
     clear: "清除本地数据",
     clearConfirm: "确定清除当前浏览器中的全部路线吗？删除后无法恢复。",
-    theme: "切换主题",
     language: "切换语言",
     units: "切换单位",
     menu: "打开工具栏",
@@ -212,7 +208,6 @@ const copy = {
     largeFile: "This file is large. A desktop browser is recommended.",
     clear: "Clear local data",
     clearConfirm: "Clear every route saved in this browser? This cannot be undone.",
-    theme: "Toggle theme",
     language: "Switch language",
     units: "Switch units",
     menu: "Open toolbar",
@@ -370,7 +365,6 @@ const toRouteGeoJSON = (routes: RouteRecord[]) =>
 export function TrackViewer() {
   const [language, setLanguage] = useState<Language>("zh");
   const [units, setUnits] = useState<UnitSystem>("metric");
-  const [theme, setTheme] = useState<Theme>("light");
   const [libraryRoutes, setLibraryRoutes] = useState<RouteRecord[]>([]);
   const [libraryReady, setLibraryReady] = useState(true);
   const [selectedId, setSelectedId] = useState(SAMPLE_ROUTES[0].id);
@@ -398,19 +392,12 @@ export function TrackViewer() {
   useEffect(() => {
     const savedLanguage = window.localStorage.getItem("trace-language") as Language;
     const savedUnits = window.localStorage.getItem("trace-units") as UnitSystem;
-    const savedTheme = window.localStorage.getItem("trace-theme") as Theme;
     const frame = window.requestAnimationFrame(() => {
       setLanguage(
         savedLanguage ||
           (navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en"),
       );
       if (savedUnits) setUnits(savedUnits);
-      setTheme(
-        savedTheme ||
-          (window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? "dark"
-            : "light"),
-      );
     });
     loadLocalRoutes()
       .then((routes) => {
@@ -420,11 +407,6 @@ export function TrackViewer() {
       .finally(() => setLibraryReady(true));
     return () => window.cancelAnimationFrame(frame);
   }, []);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem("trace-theme", theme);
-  }, [theme]);
 
   useEffect(() => {
     window.localStorage.setItem("trace-language", language);
@@ -846,15 +828,6 @@ export function TrackViewer() {
             aria-label={t.units}
           >
             <ArrowDownUp size={16} /><span>{units === "metric" ? "KM" : "MI"}</span>
-          </button>
-          <button
-            className="tool-button icon-only"
-            onClick={() =>
-              setTheme((value) => (value === "light" ? "dark" : "light"))
-            }
-            aria-label={t.theme}
-          >
-            {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
           </button>
           <button className="import-button" onClick={() => setShowImport(true)}>
             <Upload size={16} /> {isSample ? t.import : t.reimport}

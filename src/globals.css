@@ -26,22 +26,6 @@
   color-scheme: light;
 }
 
-:root[data-theme="dark"] {
-  --canvas: #000000;
-  --panel: #000000;
-  --panel-solid: #fffdf5;
-  --card: #fffdf5;
-  --card-ink: #000000;
-  --ink: #fffdf5;
-  --ink-soft: #fffdf5;
-  --ink-faint: #fffdf5;
-  --line: #fffdf5;
-  --line-strong: #fffdf5;
-  --field: #fffdf5;
-  --shadow: 8px 8px 0 #ffd93d;
-  color-scheme: dark;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -208,12 +192,6 @@ a:focus-visible {
   font-family: var(--mono);
   font-size: 9px;
   letter-spacing: 0.08em;
-}
-
-.tool-button.icon-only {
-  min-width: 38px;
-  width: 38px;
-  padding: 0;
 }
 
 .tool-button:hover {
@@ -672,10 +650,6 @@ a:focus-visible {
   inset: 0;
 }
 
-:root[data-theme="dark"] .map-canvas {
-  filter: brightness(0.75) saturate(0.72) contrast(1.04);
-}
-
 .topo-grid {
   position: absolute;
   inset: 0;
@@ -726,12 +700,6 @@ a:focus-visible {
   box-shadow: 0 12px 40px rgba(24, 45, 37, 0.14);
   backdrop-filter: blur(18px);
   transform: translateX(-50%);
-}
-
-:root[data-theme="dark"] .sample-banner {
-  color: #edf4ef;
-  border-color: rgba(255, 255, 255, 0.11);
-  background: rgba(20, 29, 26, 0.92);
 }
 
 .sample-spark {
@@ -1679,8 +1647,7 @@ a:focus-visible {
 }
 
 @media (max-width: 520px) {
-  .toolbar .tool-button:first-child,
-  .toolbar .tool-button:nth-child(3) {
+  .toolbar .tool-button:first-child {
     display: none;
   }
 
@@ -1743,10 +1710,6 @@ a:focus-visible {
   border-bottom: 4px solid #000;
   background: var(--panel);
   backdrop-filter: none;
-}
-
-:root[data-theme="dark"] .topbar {
-  border-color: #fffdf5;
 }
 
 .brand-lockup {
@@ -1841,11 +1804,6 @@ a:focus-visible {
 
 .tool-button:nth-child(2) {
   background: var(--yellow);
-}
-
-.tool-button.icon-only {
-  min-width: 40px;
-  width: 40px;
 }
 
 .tool-button:hover,
@@ -2203,12 +2161,6 @@ a:focus-visible {
   box-shadow: 8px 8px 0 #000;
   backdrop-filter: none;
   transform: translateX(-50%) rotate(-1deg);
-}
-
-:root[data-theme="dark"] .sample-banner {
-  color: #000;
-  border-color: #000;
-  background: var(--yellow);
 }
 
 .sample-spark {
@@ -2644,10 +2596,6 @@ a:focus-visible {
   .left-panel {
     top: 64px;
     border-right: 4px solid #000;
-  }
-
-  :root[data-theme="dark"] .left-panel {
-    border-color: #fffdf5;
   }
 
   .left-panel.mobile-open {
