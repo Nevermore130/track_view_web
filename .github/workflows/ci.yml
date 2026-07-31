@@ -75,7 +75,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download verified production artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: trace-atlas-${{ github.sha }}
           path: dist
