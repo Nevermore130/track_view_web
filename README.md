@@ -28,7 +28,8 @@ npm ci
 cp .env.example .env.local
 ```
 
-在 `.env.local` 中填写高德开放平台的 Web 端（JS API）Key 和安全密钥。
+在 `.env.local` 中填写高德开放平台的旧版 Web 端（JS API）Key。当前项目使用
+2021 年 12 月 2 日前创建的 Key，因此不配置 `securityJsCode`。
 
 ## 本地开发
 
