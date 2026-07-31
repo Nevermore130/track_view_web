@@ -437,6 +437,216 @@ export const AtlasScene = ({ format, productUrl }: BrowserSceneProps) => {
 export const FilterScene = ({ format, productUrl }: BrowserSceneProps) => {
   const frame = useBaseFrame();
   const portrait = format === "portrait";
+  if (portrait) {
+    const sportFilters = ["跑步", "骑行", "徒步", "登山", "其他"];
+    const activeSport =
+      frame < 32 ? undefined : frame < 68 ? "跑步" : frame < 103 ? "骑行" : "跑步";
+    const activeRoute =
+      activeSport === "跑步" ? "run" : activeSport === "骑行" ? "ride" : undefined;
+    const detailProgress = easeOut(frame, 142, 18);
+    const clickFrames = [32, 68, 103, 138];
+    const isPressing = Math.min(...clickFrames.map((click) => Math.abs(frame - click))) < 3;
+    const cursorX = interpolate(
+      frame,
+      [0, 24, 32, 58, 68, 93, 103, 126, 138],
+      [390, 155, 155, 355, 355, 155, 155, 115, 115],
+      { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+    );
+    const cursorY = interpolate(
+      frame,
+      [0, 24, 32, 58, 68, 93, 103, 126, 138],
+      [30, 146, 146, 146, 146, 146, 146, 420, 420],
+      { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+    );
+
+    return (
+      <Shell format={format}>
+        <SceneHeader index="03">筛选 · 点击 · 查看详情</SceneHeader>
+        <h2 style={{ ...sceneTitleStyle(true, 78), marginTop: 38 }}>
+          从八十条路线里，
+          <br />
+          找回那一天。
+        </h2>
+        <BrowserFrame
+          url={productUrl}
+          style={{ height: 1370, marginTop: 54, width: "100%" }}
+        >
+          <div style={{ height: "calc(100% - 64px)", position: "relative" }}>
+            <MapArtwork
+              activeRoute={activeRoute}
+              progress={activeRoute ? 1 : easeOut(frame, 0, 30)}
+              quiet
+              showEndpoints={frame >= 138}
+            />
+            <div
+              className="brutal-panel"
+              style={{
+                left: 24,
+                padding: 22,
+                position: "absolute",
+                top: 24,
+                width: 430,
+              }}
+            >
+              <strong style={{ fontFamily: FONT, fontSize: 25 }}>筛选路线</strong>
+              <div
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  gridTemplateColumns: "1fr 1fr",
+                  marginTop: 18,
+                }}
+              >
+                {sportFilters.map((filter, index) => (
+                  <div
+                    key={filter}
+                    style={{
+                      background:
+                        filter === activeSport
+                          ? [COLORS.orange, COLORS.blue, COLORS.yellow, COLORS.mint, "#b6a5f5"][index]
+                          : COLORS.white,
+                      border: `3px solid ${COLORS.ink}`,
+                      boxShadow:
+                        filter === activeSport ? `5px 5px 0 ${COLORS.ink}` : "none",
+                      fontFamily: FONT,
+                      fontSize: 18,
+                      fontWeight: 900,
+                      padding: "13px 15px",
+                    }}
+                  >
+                    {filter}
+                  </div>
+                ))}
+              </div>
+              <strong
+                style={{
+                  display: "block",
+                  fontFamily: FONT,
+                  fontSize: 17,
+                  marginTop: 20,
+                }}
+              >
+                年份
+              </strong>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  marginTop: 10,
+                }}
+              >
+                {["全部", "2026", "2025"].map((year, index) => (
+                  <span
+                    key={year}
+                    style={{
+                      background: index === 0 ? COLORS.yellow : COLORS.white,
+                      border: `3px solid ${COLORS.ink}`,
+                      borderRadius: 30,
+                      fontSize: 16,
+                      fontWeight: 900,
+                      padding: "8px 15px",
+                    }}
+                  >
+                    {year}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div
+              style={{
+                filter: "drop-shadow(5px 5px 0 rgba(0,0,0,.35))",
+                left: cursorX,
+                position: "absolute",
+                top: cursorY,
+                transform: `scale(${isPressing ? 0.82 : 0.9 + easeOut(frame, 0, 12) * 0.1})`,
+                zIndex: 8,
+              }}
+            >
+              <svg height="56" viewBox="0 0 48 56" width="48">
+                <path
+                  d="M5 3 L39 33 L25 36 L34 51 L25 55 L16 39 L5 48Z"
+                  fill={COLORS.ink}
+                  stroke={COLORS.white}
+                  strokeLinejoin="round"
+                  strokeWidth="4"
+                />
+              </svg>
+            </div>
+            <div
+              className="brutal-panel"
+              style={{
+                bottom: 28,
+                opacity: detailProgress,
+                padding: 24,
+                position: "absolute",
+                right: 24,
+                transform: `translateY(${(1 - detailProgress) * 90}px)`,
+                width: 500,
+              }}
+            >
+              <div className="eyebrow">路线详情 · 跑步</div>
+              <h3
+                style={{
+                  fontFamily: FONT,
+                  fontSize: 38,
+                  margin: "14px 0 20px",
+                }}
+              >
+                西湖晨跑
+              </h3>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                }}
+              >
+                {STATS.map((stat, index) => (
+                  <div
+                    key={stat.label}
+                    style={{
+                      background: [COLORS.orange, COLORS.yellow, "#b6a5f5", COLORS.mint][index],
+                      border: `2px solid ${COLORS.ink}`,
+                      minHeight: 84,
+                      padding: 12,
+                    }}
+                  >
+                    <small style={{ fontWeight: 900 }}>{stat.label}</small>
+                    <div
+                      style={{
+                        fontFamily: FONT,
+                        fontSize: 23,
+                        fontWeight: 900,
+                        marginTop: 7,
+                      }}
+                    >
+                      {stat.value} {stat.unit}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <svg
+                viewBox="0 0 440 96"
+                style={{
+                  background: COLORS.paper,
+                  border: `3px solid ${COLORS.ink}`,
+                  marginTop: 18,
+                  width: "100%",
+                }}
+              >
+                <path
+                  d="M0 65 L28 59 L52 74 L76 70 L84 25 L97 44 L120 39 L146 51 L170 76 L198 81 L226 75 L254 66 L282 64 L310 58 L336 66 L365 55 L394 61 L420 52 L440 58"
+                  fill="none"
+                  stroke={COLORS.orange}
+                  strokeWidth="6"
+                />
+              </svg>
+            </div>
+          </div>
+        </BrowserFrame>
+      </Shell>
+    );
+  }
+
   const activeIndex = Math.min(4, Math.floor(frame / 32));
   return (
     <Shell format={format}>
