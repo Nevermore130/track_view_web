@@ -96,7 +96,8 @@ jobs:
         run: |
           test -n "$LIGHTHOUSE_HOST"
           test -n "$LIGHTHOUSE_USER"
-          archive="trace-atlas-${GITHUB_SHA}.tar.gz"
+          release_id="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          archive="trace-atlas-${release_id}.tar.gz"
           ssh_target="${LIGHTHOUSE_USER}@${LIGHTHOUSE_HOST}"
           ssh_options=(
             -o BatchMode=yes
@@ -110,7 +111,7 @@ jobs:
             "$archive" \
             "${ssh_target}:.trace-atlas-staging/${archive}"
           ssh "${ssh_options[@]}" -p "$LIGHTHOUSE_SSH_PORT" "$ssh_target" \
-            "bash -s -- '$GITHUB_SHA'" \
+            "bash -s -- '$release_id'" \
             < deploy/tencent-lighthouse/activate-release.sh
           ssh "${ssh_options[@]}" -p "$LIGHTHOUSE_SSH_PORT" "$ssh_target" \
             'curl --fail --retry 5 --retry-all-errors --show-error --silent http://127.0.0.1:8080/ > /dev/null'

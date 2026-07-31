@@ -7,8 +7,8 @@ deploy_root="${TRACE_ATLAS_DEPLOY_ROOT:-/srv/trace-atlas}"
 archive_root="${TRACE_ATLAS_ARCHIVE_ROOT:-${HOME:?}/.trace-atlas-staging}"
 keep_releases="${TRACE_ATLAS_KEEP_RELEASES:-5}"
 
-if [[ ! "$release_id" =~ ^[0-9a-f]{40}$ ]]; then
-  echo "release id must be a 40-character lowercase Git SHA" >&2
+if [[ ! "$release_id" =~ ^[0-9a-f]{40}-[1-9][0-9]*-[1-9][0-9]*$ ]]; then
+  echo "release id must be <40-character-git-sha>-<run-id>-<run-attempt>" >&2
   exit 2
 fi
 
@@ -85,7 +85,8 @@ current_target="$(readlink "$deploy_root/current")"
 retained_release_count=0
 while IFS= read -r stale_release; do
   stale_id="$(basename "$stale_release")"
-  if [[ ! "$stale_id" =~ ^[0-9a-f]{40}$ ]]; then
+  if [[ ! "$stale_id" =~ ^[0-9a-f]{40}$ ]] &&
+    [[ ! "$stale_id" =~ ^[0-9a-f]{40}-[1-9][0-9]*-[1-9][0-9]*$ ]]; then
     continue
   fi
 

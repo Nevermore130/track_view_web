@@ -24,23 +24,25 @@ cpolar 模式下，一次网页访问经过以下链路：
 
 代码进入 `main` 后，GitHub Actions 运行 lint、类型检查、测试和生产构建，生成
 标准静态目录 `dist/`。当自动部署开关已启用，或从 `main` 手动触发部署时，Actions
-才会通过专用 SSH 用户把产物上传到腾讯云服务器，每次发布写入独立的 Git SHA
-目录：
+才会通过专用 SSH 用户把产物上传到腾讯云服务器。每次构建使用 Git SHA、
+GitHub Run ID 和 Run Attempt 组成独立版本标识：
 
 ```text
-/srv/trace-atlas/releases/<git-sha>
+/srv/trace-atlas/releases/<git-sha>-<run-id>-<run-attempt>
 ```
 
 发布脚本检查产物中存在 `index.html` 后，把符号链接原子切换到新版本：
 
 ```text
 /srv/trace-atlas/current
-  → /srv/trace-atlas/releases/<git-sha>
+  → /srv/trace-atlas/releases/<git-sha>-<run-id>-<run-attempt>
 ```
 
-仍在保留范围内的旧目录不会被原地覆盖，因此线上版本能追溯到 Git commit，也能
-通过重新指向旧目录快速回滚。发布脚本默认只保留最近 5 个版本。切换完成后，
-Actions 通过 SSH 请求 `http://127.0.0.1:8080/`，确认 Caddy 已经能提供新版本。
+即使 Git SHA 相同，环境变量变化后的重新构建也会写入新目录，不会复用旧产物。
+仍在保留范围内的旧目录不会被原地覆盖，因此线上版本能追溯到 Git commit 和具体
+工作流运行，也能通过重新指向旧目录快速回滚。发布脚本默认只保留最近 5 个版本。
+切换完成后，Actions 通过 SSH 请求 `http://127.0.0.1:8080/`，确认 Caddy 已经能
+提供新版本。
 
 ### 2. Caddy 负责静态网页
 
@@ -309,7 +311,7 @@ ssh-keyscan -p 22 SERVER_IP
 1. 运行 lint、类型检查、测试和生产构建。
 2. 下载同一工作流生成的 `dist/` 构建产物。
 3. 上传到发布用户权限为 `0700` 的私有暂存目录，再解压到
-   `/srv/trace-atlas/releases/<git-sha>`。
+   `/srv/trace-atlas/releases/<git-sha>-<run-id>-<run-attempt>`。
 4. 原子切换 `/srv/trace-atlas/current`。
 5. 通过 SSH 请求 `http://127.0.0.1:8080/`，确认 Caddy 能正常提供新版本。
 
@@ -326,12 +328,12 @@ cpolar 进程运行，公网隧道可用性仍应通过 cpolar 控制台或独�
 ls -1 /srv/trace-atlas/releases
 ```
 
-选择目标 Git SHA 并切换：
+选择目标版本目录并切换：
 
 ```bash
 sudo -u trace-deploy \
   /opt/trace-atlas/activate-release.sh \
-  0123456789abcdef0123456789abcdef01234567
+  0123456789abcdef0123456789abcdef01234567-1234567890-1
 ```
 
 该操作只切换符号链接，无需重新构建或重启容器。发布脚本默认保留最近 5 个版本，
