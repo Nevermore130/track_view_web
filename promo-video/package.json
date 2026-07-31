@@ -1,0 +1,25 @@
+{
+  "name": "trace-atlas-promo-video",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "render": "remotion render src/index.ts TraceAtlas-16x9 out/trace-atlas-16x9.mp4",
+    "render:vertical": "remotion render src/index.ts TraceAtlas-9x16 out/trace-atlas-9x16.mp4",
+    "render:square": "remotion render src/index.ts TraceAtlas-1x1 out/trace-atlas-1x1.mp4",
+    "check": "npm run typecheck && remotion compositions src/index.ts"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.502",
+    "remotion": "4.0.502",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "typescript": "5.9.3"
+  }
+}
