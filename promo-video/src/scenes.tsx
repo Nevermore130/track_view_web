@@ -14,7 +14,7 @@ import {
   Wordmark,
   easeOut,
 } from "./components";
-import { FILTERS, ROUTES, STATS } from "./data";
+import { FILTERS, ROUTES, STATS, TOTAL_DISTANCE_KM } from "./data";
 import { COLORS, FONT } from "./theme";
 import type { PromoProps } from "./TraceAtlasPromo";
 
@@ -47,10 +47,12 @@ const MapArtwork = ({
   activeRoute,
   progress = 1,
   quiet = false,
+  showEndpoints = false,
 }: {
   activeRoute?: string;
   progress?: number;
   quiet?: boolean;
+  showEndpoints?: boolean;
 }) => (
   <svg
     preserveAspectRatio="xMidYMid slice"
@@ -58,59 +60,99 @@ const MapArtwork = ({
     style={{ height: "100%", width: "100%" }}
   >
     <rect width="1080" height="720" fill="#f0efe5" />
-    <g opacity={0.38} stroke="#9aa29c" strokeWidth={2}>
-      {Array.from({ length: 14 }, (_, index) => (
-        <path
-          key={`road-h-${index}`}
-          d={`M0 ${40 + index * 52} C240 ${15 + index * 57} 620 ${
-            72 + index * 43
-          } 1080 ${28 + index * 51}`}
-          fill="none"
-        />
-      ))}
-      {Array.from({ length: 12 }, (_, index) => (
-        <path
-          key={`road-v-${index}`}
-          d={`M${25 + index * 95} 0 C${84 + index * 83} 230 ${
-            5 + index * 100
-          } 470 ${72 + index * 87} 720`}
-          fill="none"
-        />
-      ))}
+    <path
+      d="M-30 82 C178 40 301 92 466 70 C666 44 816 106 1110 52 L1110 0 L-30 0Z"
+      fill="#dce9d7"
+    />
+    <path
+      d="M-20 520 C153 486 276 503 401 473 C552 437 672 454 805 420 C928 388 1017 405 1110 378 L1110 470 C1001 493 921 482 812 508 C671 541 555 529 421 558 C266 591 147 571 -20 610Z"
+      fill="#c7dde4"
+      opacity={0.72}
+    />
+    <g fill="#e3e1d5" opacity={0.95} stroke="#d1d2c8" strokeWidth={2}>
+      <path d="M31 124 L138 110 L151 178 L42 190Z" />
+      <path d="M404 116 L516 104 L523 171 L418 181Z" />
+      <path d="M534 118 L625 111 L637 178 L545 187Z" />
+      <path d="M70 301 L147 294 L155 362 L77 371Z" />
+      <path d="M415 251 L511 238 L519 290 L427 307Z" />
+      <path d="M882 96 L1005 111 L991 177 L873 160Z" />
+      <path d="M896 529 L1021 506 L1032 577 L909 596Z" />
+    </g>
+    <g fill="none" stroke="#c6c9c2" strokeLinecap="round">
+      <path d="M0 215 C184 221 304 198 455 207 C638 218 814 192 1080 202" strokeWidth={9} />
+      <path d="M0 384 C202 377 338 406 507 379 C687 350 871 359 1080 336" strokeWidth={10} />
+      <path d="M104 0 C98 137 121 233 116 356 C110 501 132 610 148 720" strokeWidth={8} />
+      <path d="M399 0 C388 139 410 251 403 385 C396 511 418 622 430 720" strokeWidth={8} />
+      <path d="M690 0 C704 131 681 261 698 380 C712 480 697 596 713 720" strokeWidth={8} />
+      <path d="M946 0 C929 129 950 254 934 375 C920 492 949 603 929 720" strokeWidth={8} />
+    </g>
+    <g fill="none" stroke="#ffffff" strokeLinecap="round">
+      <path d="M0 215 C184 221 304 198 455 207 C638 218 814 192 1080 202" strokeWidth={4} />
+      <path d="M0 384 C202 377 338 406 507 379 C687 350 871 359 1080 336" strokeWidth={5} />
+      <path d="M104 0 C98 137 121 233 116 356 C110 501 132 610 148 720" strokeWidth={4} />
+      <path d="M399 0 C388 139 410 251 403 385 C396 511 418 622 430 720" strokeWidth={4} />
+      <path d="M690 0 C704 131 681 261 698 380 C712 480 697 596 713 720" strokeWidth={4} />
+      <path d="M946 0 C929 129 950 254 934 375 C920 492 949 603 929 720" strokeWidth={4} />
     </g>
     <path
-      d="M-40 136 C250 62 364 154 548 105 C746 52 922 123 1120 66"
+      d="M-40 88 C207 44 341 96 510 70 C716 38 878 102 1120 48"
       fill="none"
-      opacity={0.45}
+      opacity={0.58}
       stroke="#a9d4b8"
-      strokeWidth={60}
+      strokeWidth={34}
     />
+    <g fill="#747d76" fontFamily="Arial, sans-serif" fontSize={13} fontWeight={700} opacity={0.8}>
+      <text x="214" y="108">西湖景区</text>
+      <text x="468" y="438">钱塘江绿道</text>
+      <text x="766" y="113">北高峰</text>
+      <text x="548" y="611">九溪</text>
+    </g>
     {ROUTES.map((route, index) => {
       const selected = !activeRoute || activeRoute === route.id;
+      const stagger = activeRoute ? 0 : index * 0.08;
+      const drawnProgress = Math.max(0, Math.min(1, progress - stagger));
       return (
         <g key={route.id}>
-          {activeRoute === route.id ? (
+          {selected ? (
             <path
               d={route.path}
               fill="none"
+              opacity={activeRoute ? 1 : 0.7}
+              pathLength={1}
               stroke={COLORS.white}
+              strokeDasharray={1}
+              strokeDashoffset={1 - drawnProgress}
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={22}
+              strokeWidth={activeRoute === route.id ? 20 : 14}
             />
           ) : null}
           <path
             d={route.path}
             fill="none"
-            opacity={selected ? (quiet ? 0.55 : 1) : 0.12}
+            opacity={
+              activeRoute === route.id ? 1 : selected ? (quiet ? 0.55 : 1) : 0.12
+            }
             pathLength={1}
             stroke={route.color}
             strokeDasharray={1}
-            strokeDashoffset={1 - Math.max(0, Math.min(1, progress - index * 0.08))}
+            strokeDashoffset={1 - drawnProgress}
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth={activeRoute === route.id ? 11 : 8}
+            strokeWidth={activeRoute === route.id ? 10 : 7}
           />
+          {showEndpoints && activeRoute === route.id && drawnProgress > 0 ? (
+            <g fontFamily={FONT} fontSize={15} fontWeight={900} textAnchor="middle">
+              <circle cx={route.start[0]} cy={route.start[1]} fill={COLORS.forest} r={20} stroke={COLORS.white} strokeWidth={5} />
+              <text x={route.start[0]} y={route.start[1] + 5} fill={COLORS.white}>起</text>
+              {drawnProgress > 0.96 ? (
+                <>
+                  <circle cx={route.end[0]} cy={route.end[1]} fill={COLORS.orange} r={20} stroke={COLORS.white} strokeWidth={5} />
+                  <text x={route.end[0]} y={route.end[1] + 5} fill={COLORS.white}>终</text>
+                </>
+              ) : null}
+            </g>
+          ) : null}
         </g>
       );
     })}
@@ -337,11 +379,11 @@ export const AtlasScene = ({ format, productUrl }: BrowserSceneProps) => {
               padding: portrait ? 24 : 18,
               position: "absolute",
               top: 28,
-              width: portrait ? 360 : 285,
+              width: portrait ? 380 : 340,
             }}
           >
             <strong style={{ fontFamily: FONT, fontSize: 23 }}>
-              {ROUTES.length} 条路线 · 83.6 KM
+              {ROUTES.length} 条路线 · {TOTAL_DISTANCE_KM.toFixed(1)} KM
             </strong>
             <div
               style={{
@@ -370,7 +412,20 @@ export const AtlasScene = ({ format, productUrl }: BrowserSceneProps) => {
                       width: 28,
                     }}
                   />
-                  {route.label}
+                  <span>
+                    {route.name}
+                    <small
+                      style={{
+                        display: "block",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        marginTop: 2,
+                        opacity: 0.62,
+                      }}
+                    >
+                      {route.label} · {route.distanceKm.toFixed(1)} km
+                    </small>
+                  </span>
                 </div>
               ))}
             </div>
@@ -486,45 +541,12 @@ export const DetailScene = ({ format, productUrl }: BrowserSceneProps) => {
           style={{ height: portrait ? 890 : 790 }}
         >
           <div style={{ height: "calc(100% - 64px)", position: "relative" }}>
-            <MapArtwork activeRoute="run" progress={routeProgress} quiet />
-            <div
-              style={{
-                background: COLORS.forest,
-                border: `5px solid ${COLORS.white}`,
-                borderRadius: "50%",
-                color: COLORS.white,
-                display: "grid",
-                fontFamily: FONT,
-                fontSize: 16,
-                height: 44,
-                left: "18%",
-                placeItems: "center",
-                position: "absolute",
-                top: "29%",
-                width: 44,
-              }}
-            >
-              A
-            </div>
-            <div
-              style={{
-                background: COLORS.orange,
-                border: `5px solid ${COLORS.white}`,
-                borderRadius: "50%",
-                color: COLORS.white,
-                display: "grid",
-                fontFamily: FONT,
-                fontSize: 16,
-                height: 44,
-                left: "38%",
-                placeItems: "center",
-                position: "absolute",
-                top: "27%",
-                width: 44,
-              }}
-            >
-              B
-            </div>
+            <MapArtwork
+              activeRoute="run"
+              progress={routeProgress}
+              quiet
+              showEndpoints
+            />
           </div>
         </BrowserFrame>
         <div
