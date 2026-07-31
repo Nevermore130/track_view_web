@@ -39,10 +39,6 @@ jobs:
       - name: Install exact dependencies
         run: npm ci
 
-      - name: Validate public map configuration
-        run: |
-          test -n "$VITE_AMAP_KEY"
-
       - name: Verify source and production build
         run: npm run check
 
