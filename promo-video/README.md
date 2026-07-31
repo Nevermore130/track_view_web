@@ -18,13 +18,15 @@ npm ci
 npm run studio
 ```
 
-Studio 中包含三种 Composition：
+Studio 中包含以下 Composition：
 
 | Composition | 分辨率 | 用途 |
 | --- | --- | --- |
 | `TraceAtlas-16x9` | 1920×1080 | 官网、B 站、YouTube |
 | `TraceAtlas-9x16` | 1080×1920 | 小红书、视频号、抖音 |
 | `TraceAtlas-1x1` | 1080×1080 | 即刻、朋友圈、社交动态 |
+| `TraceAtlas-XHS-40fps` | 1080×1920 | 小红书 40fps 视频笔记 |
+| `TraceAtlas-XHS-Cover-3x4` | 1080×1440 | 小红书笔记封面 |
 
 ## 渲染
 
@@ -32,9 +34,15 @@ Studio 中包含三种 Composition：
 npm run render
 npm run render:vertical
 npm run render:square
+npm run render:xhs
+npm run render:xhs:assets
 ```
 
 成片输出到 `promo-video/out/`，该目录不进入 Git。
+
+`render:xhs` 输出 1080×1920、40fps、40 秒的竖屏 MP4。配套笔记文案与物料
+说明见 [`materials/xiaohongshu-note.md`](materials/xiaohongshu-note.md)；
+`render:xhs:assets` 可重新生成封面和三张竖屏配图。
 
 渲染前检查：
 

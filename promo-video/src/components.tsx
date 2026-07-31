@@ -2,11 +2,10 @@ import type { CSSProperties, ReactNode } from "react";
 import {
   interpolate,
   spring,
-  useCurrentFrame,
-  useVideoConfig,
 } from "remotion";
 
 import { COLORS, FONT } from "./theme";
+import { BASE_FPS, useBaseFrame } from "./timing";
 
 export const easeOut = (
   frame: number,
@@ -27,11 +26,10 @@ export const Pop = ({
   delay?: number;
   style?: CSSProperties;
 }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const frame = useBaseFrame();
   const progress = spring({
     frame: frame - delay,
-    fps,
+    fps: BASE_FPS,
     config: { damping: 16, stiffness: 160, mass: 0.8 },
   });
   return (

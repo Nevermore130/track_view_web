@@ -8,6 +8,9 @@
     "typecheck": "tsc --noEmit",
     "render": "remotion render src/index.ts TraceAtlas-16x9 out/trace-atlas-16x9.mp4",
     "render:vertical": "remotion render src/index.ts TraceAtlas-9x16 out/trace-atlas-9x16.mp4",
+    "render:xhs": "remotion render src/index.ts TraceAtlas-XHS-40fps out/xiaohongshu/trace-atlas-xhs-40fps.mp4",
+    "render:xhs:cover": "remotion still src/index.ts TraceAtlas-XHS-Cover-3x4 out/xiaohongshu/cover-3x4.png",
+    "render:xhs:assets": "npm run render:xhs:cover && remotion still src/index.ts TraceAtlas-XHS-40fps out/xiaohongshu/route-atlas-9x16.png --frame=560 && remotion still src/index.ts TraceAtlas-XHS-40fps out/xiaohongshu/route-detail-9x16.png --frame=1080 && remotion still src/index.ts TraceAtlas-XHS-40fps out/xiaohongshu/privacy-9x16.png --frame=1320",
     "render:square": "remotion render src/index.ts TraceAtlas-1x1 out/trace-atlas-1x1.mp4",
     "check": "npm run typecheck && remotion compositions src/index.ts"
   },

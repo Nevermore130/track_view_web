@@ -1,4 +1,4 @@
-import { AbsoluteFill, Series } from "remotion";
+import { AbsoluteFill, Series, useVideoConfig } from "remotion";
 
 import {
   AtlasScene,
@@ -11,8 +11,9 @@ import {
 } from "./scenes";
 import "./styles.css";
 import { COLORS } from "./theme";
+import { BASE_FPS, toOutputFrames } from "./timing";
 
-export const PROMO_FPS = 30;
+export const PROMO_FPS = BASE_FPS;
 
 const SCENE_DURATIONS = {
   opening: 120,
@@ -29,6 +30,9 @@ export const PROMO_DURATION_FRAMES = Object.values(SCENE_DURATIONS).reduce(
   0,
 );
 
+export const getPromoDurationFrames = (fps: number) =>
+  toOutputFrames(PROMO_DURATION_FRAMES, fps);
+
 export type PromoProps = {
   format: "landscape" | "portrait" | "square";
   productUrl: string;
@@ -39,8 +43,12 @@ export const DEFAULT_PROMO_PROPS: PromoProps = {
   productUrl: "trackview.cpolar.top",
 };
 
-export const TraceAtlasPromo = ({ format, productUrl }: PromoProps) => (
-  <AbsoluteFill
+export const TraceAtlasPromo = ({ format, productUrl }: PromoProps) => {
+  const { fps } = useVideoConfig();
+  const duration = (frames: number) => toOutputFrames(frames, fps);
+
+  return (
+    <AbsoluteFill
     className="promo-root"
     style={{
       background: COLORS.paper,
@@ -48,28 +56,29 @@ export const TraceAtlasPromo = ({ format, productUrl }: PromoProps) => (
     }}
   >
     <Series>
-      <Series.Sequence durationInFrames={SCENE_DURATIONS.opening}>
+      <Series.Sequence durationInFrames={duration(SCENE_DURATIONS.opening)}>
         <OpeningScene format={format} />
       </Series.Sequence>
-      <Series.Sequence durationInFrames={SCENE_DURATIONS.import}>
+      <Series.Sequence durationInFrames={duration(SCENE_DURATIONS.import)}>
         <ImportScene format={format} />
       </Series.Sequence>
-      <Series.Sequence durationInFrames={SCENE_DURATIONS.atlas}>
+      <Series.Sequence durationInFrames={duration(SCENE_DURATIONS.atlas)}>
         <AtlasScene format={format} productUrl={productUrl} />
       </Series.Sequence>
-      <Series.Sequence durationInFrames={SCENE_DURATIONS.filters}>
+      <Series.Sequence durationInFrames={duration(SCENE_DURATIONS.filters)}>
         <FilterScene format={format} productUrl={productUrl} />
       </Series.Sequence>
-      <Series.Sequence durationInFrames={SCENE_DURATIONS.detail}>
+      <Series.Sequence durationInFrames={duration(SCENE_DURATIONS.detail)}>
         <DetailScene format={format} productUrl={productUrl} />
       </Series.Sequence>
-      <Series.Sequence durationInFrames={SCENE_DURATIONS.privacy}>
+      <Series.Sequence durationInFrames={duration(SCENE_DURATIONS.privacy)}>
         <PrivacyScene format={format} />
       </Series.Sequence>
-      <Series.Sequence durationInFrames={SCENE_DURATIONS.end}>
+      <Series.Sequence durationInFrames={duration(SCENE_DURATIONS.end)}>
         <EndScene format={format} productUrl={productUrl} />
       </Series.Sequence>
     </Series>
     <div className="promo-grain" />
-  </AbsoluteFill>
-);
+    </AbsoluteFill>
+  );
+};

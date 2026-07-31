@@ -3,8 +3,6 @@ import {
   AbsoluteFill,
   interpolate,
   spring,
-  useCurrentFrame,
-  useVideoConfig,
 } from "remotion";
 
 import {
@@ -16,6 +14,7 @@ import {
 } from "./components";
 import { FILTERS, ROUTES, STATS, TOTAL_DISTANCE_KM } from "./data";
 import { COLORS, FONT } from "./theme";
+import { BASE_FPS, useBaseFrame } from "./timing";
 import type { PromoProps } from "./TraceAtlasPromo";
 
 type SceneProps = Pick<PromoProps, "format">;
@@ -173,7 +172,7 @@ const sceneTitleStyle = (
 });
 
 export const OpeningScene = ({ format }: SceneProps) => {
-  const frame = useCurrentFrame();
+  const frame = useBaseFrame();
   const portrait = format === "portrait";
   const lineProgress = easeOut(frame, 0, 90);
   return (
@@ -239,11 +238,10 @@ export const OpeningScene = ({ format }: SceneProps) => {
 };
 
 export const ImportScene = ({ format }: SceneProps) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const frame = useBaseFrame();
   const portrait = format === "portrait";
   const drop = spring({
-    fps,
+    fps: BASE_FPS,
     frame: frame - 22,
     config: { damping: 13, stiffness: 135 },
   });
@@ -343,7 +341,7 @@ export const ImportScene = ({ format }: SceneProps) => {
 };
 
 export const AtlasScene = ({ format, productUrl }: BrowserSceneProps) => {
-  const frame = useCurrentFrame();
+  const frame = useBaseFrame();
   const portrait = format === "portrait";
   const routeProgress = easeOut(frame, 12, 150) * 1.3;
   const scale = interpolate(frame, [0, 210], [1.08, 1], {
@@ -437,7 +435,7 @@ export const AtlasScene = ({ format, productUrl }: BrowserSceneProps) => {
 };
 
 export const FilterScene = ({ format, productUrl }: BrowserSceneProps) => {
-  const frame = useCurrentFrame();
+  const frame = useBaseFrame();
   const portrait = format === "portrait";
   const activeIndex = Math.min(4, Math.floor(frame / 32));
   return (
@@ -521,7 +519,7 @@ export const FilterScene = ({ format, productUrl }: BrowserSceneProps) => {
 };
 
 export const DetailScene = ({ format, productUrl }: BrowserSceneProps) => {
-  const frame = useCurrentFrame();
+  const frame = useBaseFrame();
   const portrait = format === "portrait";
   const routeProgress = easeOut(frame, 6, 90);
   return (
@@ -612,11 +610,10 @@ export const DetailScene = ({ format, productUrl }: BrowserSceneProps) => {
 };
 
 export const PrivacyScene = ({ format }: SceneProps) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const frame = useBaseFrame();
   const compact = format !== "landscape";
   const lock = spring({
-    fps,
+    fps: BASE_FPS,
     frame: frame - 18,
     config: { damping: 12, stiffness: 125 },
   });
@@ -717,7 +714,7 @@ export const EndScene = ({
   format,
   productUrl,
 }: SceneProps & { productUrl: string }) => {
-  const frame = useCurrentFrame();
+  const frame = useBaseFrame();
   const portrait = format === "portrait";
   const wipe = easeOut(frame, 0, 28);
   return (
