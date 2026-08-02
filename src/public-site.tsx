@@ -299,15 +299,15 @@ const SupportPage = () => (
         <CircleHelp size={42} />
         <span className="public-kicker">仍然需要帮助？</span>
         <h2>带上可复现的信息，告诉我们。</h2>
-        <p>请说明 iOS 版本、迹线版本、问题发生在哪一步，以及是否可以稳定复现。不要公开上传健康导出包、真实坐标或包含个人健康数据的截图。</p>
+        <p>请登录 GitHub，并说明 iOS 版本、迹线版本、问题发生在哪一步，以及是否可以稳定复现。不要公开上传健康导出包、真实坐标或包含个人健康数据的截图。</p>
       </div>
       <a
         className="public-button public-button-primary"
-        href="https://github.com/Nevermore130/track_view_web/issues"
+        href="https://github.com/Nevermore130/track_view_web/issues/new"
         target="_blank"
         rel="noreferrer"
       >
-        前往公开问题区
+        登录 GitHub 提交问题
         <ArrowRight size={19} />
       </a>
     </section>

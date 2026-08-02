@@ -4,7 +4,7 @@ import {
   publicPageForPath,
   publicPageMeta,
 } from "./public-site-routes";
-import { PublicSite } from "./public-site";
+import { PublicSiteEntry } from "./public-site-entry";
 import { TrackViewer } from "./track-viewer";
 import "./globals.css";
 
@@ -26,6 +26,10 @@ if (publicPage) {
 
 createRoot(root).render(
   <StrictMode>
-    {publicPage ? <PublicSite page={publicPage} /> : <TrackViewer />}
+    {publicPage ? (
+      <PublicSiteEntry page={publicPage} />
+    ) : (
+      <TrackViewer />
+    )}
   </StrictMode>,
 );
