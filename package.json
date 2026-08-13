@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",
-    "@zip.js/zip.js": "^2.8.34",
+    "@zip.js/zip.js": "^2.8.36",
     "dexie": "^4.4.4",
     "lucide-react": "^1.27.0",
     "react": "19.2.6",
